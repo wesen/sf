@@ -919,7 +919,7 @@ Proof.
   intros b. destruct b; reflexivity.
 Qed.
 
-Lemma andb_false :
+Theorem andb_false :
   forall (b : bool),
     andb b false = false.
 Proof.

@@ -104,10 +104,24 @@ Qed.
 (** Prove [andb_true_elim2], marking cases (and subcases) when
     you use [destruct]. *)
 
-Theorem andb_true_elim2 : forall b c : bool,
-  andb b c = true -> c = true.
+Theorem andb_false' :
+  forall (b : bool),
+    andb b false = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b. destruct b ; reflexivity.
+Qed.
+
+
+Theorem andb_true_elim2 : forall b c : bool,
+                            andb b c = true -> c = true.
+Proof.
+  intros b c H.
+  destruct c.
+  reflexivity.
+  rewrite <- H. rewrite andb_false.
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (** There are no hard and fast rules for how proofs should be
@@ -209,12 +223,11 @@ Proof.
 Theorem minus_diag : forall n,
   minus n n = 0.
 Proof.
-  (* WORKED IN CLASS *)
-  intros n. induction n as [| n'].
-  Case "n = 0".
-    simpl. reflexivity.
-  Case "n = S n'".
-    simpl. rewrite -> IHn'. reflexivity.  Qed.
+  intros n.
+  induction n as [| n'].
+  Case "n = 0". reflexivity.
+  Case "n = S n'". simpl. rewrite IHn'. reflexivity.
+Qed.
 
 (** **** Exercise: 2 stars (basic_induction)  *)
 
@@ -224,24 +237,36 @@ Proof.
 Theorem mult_0_r : forall n:nat,
   n * 0 = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [| n'].
+  reflexivity.
+  simpl. rewrite IHn'. reflexivity.
+Qed.
 
 Theorem plus_n_Sm : forall n m : nat, 
   S (n + m) = n + (S m).
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros n.
+  induction n as [| n'].
+  Case "n = 0". intros m. simpl. reflexivity.
+  Case "n = S n'". intros m. simpl. rewrite IHn'. reflexivity.
+Qed.
 
 
 Theorem plus_comm : forall n m : nat,
   n + m = m + n.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros n. induction n as [| n']; simpl.
+  Case "n = 0". intros m. rewrite plus_O. reflexivity.
+  Case "n = S n'". intros m. rewrite <- plus_n_Sm. rewrite IHn'. reflexivity.
+Qed.
 
 Theorem plus_assoc : forall n m p : nat,
   n + (m + p) = (n + m) + p.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [| n']; simpl.
+  Case "n = 0". intros m p. reflexivity.
+  Case "n = S n'". intros m p. rewrite IHn'. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars (double_plus)  *)
@@ -257,8 +282,12 @@ Fixpoint double (n:nat) :=
 (** Use induction to prove this simple fact about [double]: *)
 
 Lemma double_plus : forall n, double n = n + n .
-Proof.  
-  (* FILL IN HERE *) Admitted.
+Proof.
+  intros n.
+  induction n as [| n']; simpl.
+  reflexivity.
+  rewrite IHn'. rewrite plus_n_Sm. reflexivity.
+Qed.
 (** [] *)
 
 
@@ -356,18 +385,36 @@ Proof.
 Theorem plus_swap : forall n m p : nat, 
   n + (m + p) = m + (n + p).
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros n m p. rewrite plus_assoc. rewrite plus_assoc.
+  assert (H: n + m = m + n).
+  Case "Proof of assertion".
+  rewrite -> plus_comm. reflexivity.
+  rewrite H. reflexivity.
+Qed.
 
 (** Now prove commutativity of multiplication.  (You will probably
     need to define and prove a separate subsidiary theorem to be used
     in the proof of this one.)  You may find that [plus_swap] comes in
     handy. *)
 
+Theorem mult_n_Sm : forall m n : nat,
+                      m * S n = m + m * n.
+Proof.
+  intros m.
+  induction m as [| m'].
+  intros n; simpl. reflexivity.
+  intros n; simpl. rewrite IHm'. rewrite plus_swap. reflexivity.
+Qed.
+
 Theorem mult_comm : forall m n : nat,
  m * n = n * m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros m.
+  induction m as [| m']; intros n.
+  Case "m = 0". simpl. rewrite mult_0_r. reflexivity.
+  Case "m = S m'". simpl. rewrite mult_n_Sm. rewrite IHm'. reflexivity.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (evenb_n__oddb_Sn)  *)
@@ -377,7 +424,14 @@ Proof.
 Theorem evenb_n__oddb_Sn : forall n : nat,
   evenb n = negb (evenb (S n)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  assert (H: evenb (S n) = negb (evenb n)).
+  Case "Proof of assertion". induction n as [| n'].
+  SCase "n = 0". reflexivity.
+  SCase "n = S n'". rewrite IHn'. simpl. rewrite negb_involutive. reflexivity.
+  rewrite H. rewrite negb_involutive.
+  reflexivity.
+Qed.
 (** [] *)
 
 (* ###################################################################### *)
@@ -395,22 +449,28 @@ Proof.
 Theorem ble_nat_refl : forall n:nat,
   true = ble_nat n n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n. reflexivity. simpl. rewrite IHn. reflexivity.
+Qed.
 
 Theorem zero_nbeq_S : forall n:nat,
   beq_nat 0 (S n) = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. destruct n. reflexivity. reflexivity.
+Qed.
 
 Theorem andb_false_r : forall b : bool,
   andb b false = false.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b. destruct b; reflexivity.
+Qed.
 
 Theorem plus_ble_compat_l : forall n m p : nat, 
   ble_nat n m = true -> ble_nat (p + n) (p + m) = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m p H.
+  induction p. simpl. rewrite H. reflexivity.
+  simpl. rewrite IHp. reflexivity.
+Qed.
 
 Theorem S_nbeq_0 : forall n:nat,
   beq_nat (S n) 0 = false.
@@ -491,6 +551,73 @@ Proof.
 (** [] *)
 
 
+
+Inductive bin : Type :=
+| Ob : bin
+| Tb : bin -> bin
+| STb : bin -> bin.
+
+Fixpoint incr (n: bin) : bin :=
+  match n with
+    | Ob => STb Ob
+    | Tb n => STb n
+    | STb n => Tb (incr n)
+  end.
+
+Fixpoint bin_to_nat (n : bin) : nat :=
+  match n with
+    | Ob => O
+    | Tb n => (bin_to_nat n) + (bin_to_nat n)
+    | STb n => (bin_to_nat n) + (bin_to_nat n) + 1
+  end.
+
+Lemma plus_1_S : forall n : nat, n + 1 = S n.
+Proof.
+  intros n.
+  induction n. simpl. reflexivity.
+  simpl. rewrite IHn. reflexivity.
+Qed.
+
+Lemma plus_O : forall n : nat, n + 0 = n.
+  intros n. induction n. reflexivity. simpl. rewrite IHn. reflexivity.
+Qed.
+
+Lemma S_equal : forall n m : nat, S n = S m <-> n = m.
+Proof.
+  intros n m.
+  split. intros H. inversion H. reflexivity.
+  intros H. rewrite H. reflexivity.
+Qed.
+
+Lemma S_equal_l : forall n m : nat, S n = S m -> n = m.
+Proof.
+  intros n m H. inversion H. reflexivity.
+Qed.
+
+Lemma S_equal_r : forall n m : nat, n = m -> S n = S m.
+  intros n m H. rewrite H. reflexivity.
+Qed.
+
+Lemma plus_SS : forall n m : nat, S n + S m = S (S (n + m)).
+Proof.
+  intros n. induction n as [|n'].
+  intros m. simpl. reflexivity.
+  intros m. simpl. apply S_equal. rewrite <- IHn'. simpl. reflexivity.
+Qed.
+
+Theorem incr_bin_nat :
+  forall n : bin,
+    bin_to_nat (incr n) = S (bin_to_nat n).
+Proof.
+  intros n.
+  induction n as [| n' | n'].
+  (* n = Ob *) simpl. reflexivity.
+  (* n = Tb n' *) simpl. rewrite plus_1_S. reflexivity.
+  (* n = STb n' *)
+  simpl. rewrite IHn'. 
+  rewrite plus_1_S. rewrite plus_SS. reflexivity.
+Qed.
+
 (** **** Exercise: 5 stars, advanced (binary_inverse)  *)
 (** This exercise is a continuation of the previous exercise about
     binary numbers.  You will need your definitions and theorems from
@@ -515,7 +642,77 @@ Proof.
 
     Again, feel free to change your earlier definitions if this helps
     here. 
-*)
+ *)
+
+Fixpoint nat_to_bin (n : nat) : bin :=
+  match n with
+    | O => Ob
+    | S n' => incr (nat_to_bin n')
+  end.
+
+Theorem nat_to_bin_to_nat : forall n : nat,
+                              bin_to_nat (nat_to_bin n) = n.
+Proof.
+  intros n.
+  induction n as [| n']; simpl.
+  Case "n = 0". reflexivity.
+  Case "n = S n'". rewrite incr_bin_nat. rewrite IHn'.
+  reflexivity.
+Qed.
+
+(* b) Ob = Tb Ob *)
+
+(* I think this definition is wrong *)
+Fixpoint normalize_bin (n : bin) : bin :=
+  match bin_to_nat n with
+    | O => Ob
+    | _ => match n with
+             | Ob => Ob
+             | Tb m => Tb (normalize_bin m)
+             | STb m => STb (normalize_bin m)
+           end
+  end.
+
+Lemma plus_to_0 :
+  forall n m : nat,
+    n + m = 0 -> n = 0.
+Proof.
+  intros n. induction n. simpl. intros m H. reflexivity.
+  intros m H. inversion H.
+Qed.
+
+Lemma plus_plus_0 :
+  forall n : nat,
+    n = 0 -> n + n = 0.
+Proof.
+  intros n H.
+  destruct n. reflexivity.
+  rewrite H. reflexivity.
+Qed.
+
+Theorem normalize_bin_nat :
+  forall b : bin,
+    nat_to_bin (bin_to_nat b) = normalize_bin b.
+Proof.
+  intros b.
+  induction b as [| b' | b'].
+  reflexivity.
+  simpl. destruct bin_to_nat.  reflexivity.
+  
+Abort.
+
+
+Lemma normalize_bin_Ob :
+  forall n : bin,
+    bin_to_nat n = 0 -> normalize_bin n = Ob.
+Proof.
+  intros n H.
+  induction n as [| n' | n'].
+  Case "n = Ob". reflexivity.
+  Case "n = Tb n'". simpl in H. apply plus_to_0 in H. apply IHn' in H. simpl.
+  destruct n' as [| n'' | n'']. SCase "n' = Ob". reflexivity.
+  SCase "n' = Tb n''". rewrite H.
+Abort.
 
 (* FILL IN HERE *)
 (** [] *)
