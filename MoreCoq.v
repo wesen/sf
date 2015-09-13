@@ -46,7 +46,7 @@ Theorem silly2 : forall (n m o p : nat),
      (forall (q r : nat), q = r -> [q;o] = [r;p]) ->
      [n;o] = [m;p].
 Proof.
-  intros n m o p eq1 eq2. 
+  intros n m o p eq1 eq2.
   apply eq2. apply eq1.  Qed.
 
 (** You may find it instructive to experiment with this proof
@@ -77,7 +77,9 @@ Theorem silly_ex :
      evenb 3 = true ->
      oddb 4 = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros eq1 eq2.
+  apply eq1. apply eq2.
+  Qed.
 (** [] *)
 
 (** To use the [apply] tactic, the (conclusion of the) fact
@@ -102,10 +104,11 @@ Theorem silly3 : forall (n : nat),
      beq_nat (S (S n)) 7 = true.
 Proof.
   intros n H.
+  simpl.
   symmetry.
   simpl. (* Actually, this [simpl] is unnecessary, since 
             [apply] will perform simplification first. *)
-  apply H.  Qed.         
+  apply H.  Qed.
 
 (** **** Exercise: 3 stars (apply_exercise1)  *)
 (** Hint: you can use [apply] with previously defined lemmas, not
@@ -116,7 +119,11 @@ Theorem rev_exercise1 : forall (l l' : list nat),
      l = rev l' ->
      l' = rev l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros l l' eq1.
+  rewrite eq1. symmetry. apply rev_involutive.
+Qed.
+
+Check rev_involutive.
 (** [] *)
 
 (** **** Exercise: 1 star, optional (apply_rewrite)  *)
@@ -183,7 +190,8 @@ Example trans_eq_exercise : forall (n m o p : nat),
      (n + p) = m ->
      (n + p) = (minustwo o). 
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m o p eq1 eq2. rewrite <- eq1. apply eq2.
+  Qed.
 (** [] *)
 
 
@@ -269,7 +277,9 @@ Example sillyex1 : forall (X : Type) (x y z : X) (l j : list X),
      y :: l = x :: j ->
      x = y.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x y z i j eq1 eq2.
+  inversion eq2. reflexivity.
+Qed.
 (** [] *)
 
 Theorem silly6 : forall (n : nat),
@@ -290,7 +300,7 @@ Example sillyex2 : forall (X : Type) (x y z : X) (l j : list X),
      y :: l = z :: j ->
      x = z.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. inversion H. Qed.
 (** [] *)
 
 (** While the injectivity of constructors allows us to reason
@@ -313,12 +323,16 @@ Proof. intros A B f x y eq. rewrite eq.  reflexivity.  Qed.
 Theorem beq_nat_0_l : forall n,
    beq_nat 0 n = true -> n = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n eq1. induction n. reflexivity. inversion eq1.
+Qed.
 
 Theorem beq_nat_0_r : forall n,
    beq_nat n 0 = true -> n = 0.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n eq1.
+  induction n. reflexivity.
+  inversion eq1.
+Qed.
 (** [] *)
 
 

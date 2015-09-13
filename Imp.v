@@ -216,8 +216,32 @@ Proof.
   Case "AMinus".
     simpl. rewrite IHa1. rewrite IHa2. reflexivity.
   Case "AMult".
-    simpl. rewrite IHa1. rewrite IHa2. reflexivity.  Qed.
+  simpl. rewrite IHa1. rewrite IHa2. reflexivity.  Qed.
 
+Theorem optimize_0plus_sound':
+  forall a,
+    aeval (optimize_0plus a) = aeval a.
+Proof.
+  intros a. induction a ; try (simpl; rewrite IHa1; rewrite IHa2; reflexivity).
+  Case "Anum". reflexivity.
+  Case "APlus". destruct a1; try (simpl; simpl in IHa1; rewrite IHa1; rewrite IHa2; reflexivity).
+  SCase "a1 = ANum n". destruct n; simpl; rewrite IHa2; reflexivity.
+Qed.
+
+Theorem optimize_0plus_sound'':
+  forall a,
+    aeval (optimize_0plus a) = aeval a.
+Proof.
+  intros a.
+  induction a
+  ; try (simpl; rewrite IHa1; rewrite IHa2; reflexivity)
+  ; try reflexivity.
+
+  Case "APlus".
+  destruct a1 ; try (simpl; simpl in IHa1; rewrite IHa1; rewrite IHa2; reflexivity).
+  SCase "a1 = ANum n". destruct n; simpl; rewrite IHa2; reflexivity.
+Qed.
+    
 (* ####################################################### *)
 (** * Coq Automation *)
 
