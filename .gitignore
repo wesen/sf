@@ -1,0 +1,8 @@
+*.vo
+*.v.d
+*.aux
+*.glob
+.depend
+.coq-native/
+\#*
+.#*
