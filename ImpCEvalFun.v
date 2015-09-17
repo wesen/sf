@@ -3,6 +3,7 @@
 (* #################################### *)
 (** * Evaluation Function *)
 
+Require Import Omega.
 Require Import Imp.
 
 (** Here's a first try at an evaluation function for commands,
