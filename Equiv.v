@@ -3,6 +3,7 @@
 
 
 Require Export Imp.
+Require Import Omega.
 
 (** *** Some general advice for working on exercises:
 
@@ -104,6 +105,8 @@ Definition prog_b : com :=
   X ::= AMinus (AId X) (AId Y);;
   Y ::= ANum 0.
 
+(* X = 0, Y = 0 *)
+
 Definition prog_c : com :=
   SKIP.
 
@@ -137,7 +140,9 @@ Definition prog_i : com :=
   END.
 
 Definition equiv_classes : list (list com) :=
-(* FILL IN HERE *) admit.
+  [ [prog_a; prog_f; prog_g] ; (* diverges *)
+    [prog_b; prog_c; prog_h; prog_i] (* X = 0, Y = 0 *)
+      ].
 (* GRADE_TEST 2: check_equiv_classes equiv_classes *)
 (** [] *)
 
@@ -150,6 +155,7 @@ Definition equiv_classes : list (list com) :=
 Theorem aequiv_example:
   aequiv (AMinus (AId X) (AId X)) (ANum 0).
 Proof.
+  unfold aequiv.
   intros st. simpl. omega. 
 Qed.
 
@@ -169,6 +175,7 @@ Theorem skip_left: forall c,
      c.
 Proof. 
   (* WORKED IN CLASS *)
+  unfold cequiv.
   intros c st st'.
   split; intros H.
   Case "->". 
@@ -189,8 +196,17 @@ Theorem skip_right: forall c,
   cequiv 
     (c;; SKIP) 
     c.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  split ; intros H.
+  Case "->".
+  inversion H. subst.
+  inversion H5. subst.
+  assumption.
+  Case "<-".
+(*  assert (SKIP / st' || st') as EQ1. *)
+  apply E_Seq with st'.  assumption.
+  apply E_Skip.
+Qed.
 (** [] *)
 
 (** Similarly, here is a simple transformations that simplifies [IFB]
@@ -260,6 +276,38 @@ Theorem IFB_true: forall b c1 c2,
        c1.
 Proof.
   intros b c1 c2 Hb.
+  unfold bequiv in Hb. simpl in Hb.
+  unfold cequiv. split.
+  Case "->".
+  intros H. 
+  inversion H; subst.
+  SCase "beval st b = true". assumption.
+  SCase "beval st b = false".
+  rewrite Hb in H5. inversion H5.
+
+  Case "<-".
+  intros H.
+  apply E_IfTrue.  apply Hb. assumption.
+Qed.
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+(*
+  
+  intros b c1 c2 Hb.
   split; intros H.
   Case "->".
     inversion H; subst.
@@ -273,6 +321,7 @@ Proof.
     apply E_IfTrue; try assumption.
     unfold bequiv in Hb. simpl in Hb.
     rewrite Hb. reflexivity.  Qed.
+*)
 
 (** **** Exercise: 2 stars (IFB_false)  *)
 Theorem IFB_false: forall b c1 c2,
@@ -281,7 +330,19 @@ Theorem IFB_false: forall b c1 c2,
     (IFB b THEN c1 ELSE c2 FI) 
     c2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c1 c2 Hb.
+  unfold bequiv in Hb. simpl in Hb.
+  unfold cequiv. split.
+  Case "->".
+  intros H.
+  inversion H; subst. rewrite Hb in H5. inversion H5.
+  assumption.
+  Case "<-".
+  intros H.
+  apply E_IfFalse.  rewrite Hb. reflexivity.
+  assumption.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 3 stars (swap_if_branches)  *)
@@ -293,7 +354,25 @@ Theorem swap_if_branches: forall b e1 e2,
     (IFB b THEN e1 ELSE e2 FI)
     (IFB BNot b THEN e2 ELSE e1 FI).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b e1 e2.
+  unfold cequiv.
+  split.
+  Case "->".
+  intros H.
+  inversion H; subst.
+  SCase "b = true".
+  apply E_IfFalse. simpl. rewrite H5. reflexivity. assumption.
+  SCase "b = false".
+  apply E_IfTrue. simpl. rewrite H5. reflexivity. assumption.
+
+  Case "<-".
+  intros H.
+  inversion H ; subst.
+  SCase "BNot b = true".
+  apply E_IfFalse. simpl in H5. apply negb_true_iff. apply H5. assumption.
+  SCase "BNot b = false".
+  apply E_IfTrue. simpl in H5. apply negb_false_iff. apply H5. assumption.
+Qed.
 (** [] *)
 
 (** *** *)

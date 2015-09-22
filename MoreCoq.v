@@ -396,7 +396,10 @@ Theorem plus_n_n_injective : forall n m,
      n = m.
 Proof.
   intros n. induction n as [| n'].
-    (* Hint: use the plus_n_Sm lemma *)
+    intros m eq1. simpl in eq1. induction m. reflexivity. inversion eq1.
+    intros m eq1. symmetry in eq1. 
+    induction m. inversion eq1. apply f_equal. apply IHn'.
+  (* Hint: use the plus_n_Sm lemma *)
     (* FILL IN HERE *) Admitted.
 (** [] *)
 

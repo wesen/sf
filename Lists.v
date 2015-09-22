@@ -497,7 +497,7 @@ Proof.
   induction n as [| h t].
   Case "n = []". intros m. simpl. reflexivity.
   Case "n = h :: t". intros m. simpl.
-  induction beq_nat eqn:H.
+  induction (beq_nat v1 v2) eqn:H.
   SCase "v1 = v2".
   rewrite <- IHt. simpl. rewrite H. simpl. rewrite plus_n_Sm. reflexivity.
   SCase "v1 != v2".
@@ -513,7 +513,7 @@ Proof.
   Case "m = []". intros v. simpl. rewrite plus_0_r. rewrite sum_nil. reflexivity.
   Case "m = h :: t". intros v.  rewrite <- count_one_more. simpl.
   
-  induction beq_nat eqn:H. simpl.
+  induction (beq_nat v h) eqn:H. simpl.
   SCase "v = h". rewrite <- plus_n_Sm. rewrite IHt. reflexivity.
   SCase "v != h". simpl. rewrite IHt. reflexivity.
 Qed.
