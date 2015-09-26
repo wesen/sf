@@ -156,15 +156,29 @@ Theorem aequiv_example:
   aequiv (AMinus (AId X) (AId X)) (ANum 0).
 Proof.
   unfold aequiv.
-  intros st. simpl. omega. 
+  intros. simpl. omega.
+Qed.
+
+Print state.
+
+Lemma st_minus_0: forall st (sym: id), st sym - st sym = 0.
+Proof.
+  intros. omega.
 Qed.
 
 Theorem bequiv_example:
   bequiv (BEq (AMinus (AId X) (AId X)) (ANum 0)) BTrue. 
-Proof. 
+Proof.
+  unfold bequiv. intros. simpl.
+  rewrite st_minus_0. reflexivity.
+Qed.
+
+
+(*
   intros st. unfold beval.
   rewrite aequiv_example. reflexivity.
 Qed.
+*)
 
 (** For examples of command equivalence, let's start by looking at
     some trivial program transformations involving [SKIP]: *)
@@ -173,7 +187,21 @@ Theorem skip_left: forall c,
   cequiv 
      (SKIP;; c) 
      c.
-Proof. 
+Proof.
+  split; intros H.
+  Case "->".
+  inversion H; subst.
+  inversion H2; subst. assumption.
+  Case "<-".
+  apply E_Seq with st.
+  constructor. assumption.
+Qed.
+
+
+(*
+
+
+  
   (* WORKED IN CLASS *)
   unfold cequiv.
   intros c st st'.
@@ -187,6 +215,7 @@ Proof.
     apply E_Skip. 
     assumption.  
 Qed.
+*)
 
 (** **** Exercise: 2 stars (skip_right)  *)
 (** Prove that adding a SKIP after a command results in an equivalent
@@ -197,6 +226,17 @@ Theorem skip_right: forall c,
     (c;; SKIP) 
     c.
 Proof.
+  split; intros H.
+  Case "->".
+  inversion H; subst. inversion H5; subst. assumption.
+  Case "<-".
+  apply E_Seq with st'. assumption.
+  apply E_Skip.
+Qed.
+  
+(*
+
+  
   split ; intros H.
   Case "->".
   inversion H. subst.
@@ -207,6 +247,7 @@ Proof.
   apply E_Seq with st'.  assumption.
   apply E_Skip.
 Qed.
+*)
 (** [] *)
 
 (** Similarly, here is a simple transformations that simplifies [IFB]
@@ -216,14 +257,14 @@ Theorem IFB_true_simple: forall c1 c2,
   cequiv 
     (IFB BTrue THEN c1 ELSE c2 FI) 
     c1.
-Proof. 
-  intros c1 c2. 
+Proof.
   split; intros H.
   Case "->".
-    inversion H; subst. assumption. inversion H5.
+  inversion H; subst. assumption.
+  inversion H5.
   Case "<-".
-    apply E_IfTrue. reflexivity. assumption.  Qed.
-
+  apply E_IfTrue. reflexivity. assumption.
+Qed.
 
 (** Of course, few programmers would be tempted to write a conditional
     whose guard is literally [BTrue].  A more interesting case is when
@@ -275,35 +316,16 @@ Theorem IFB_true: forall b c1 c2,
        (IFB b THEN c1 ELSE c2 FI) 
        c1.
 Proof.
-  intros b c1 c2 Hb.
-  unfold bequiv in Hb. simpl in Hb.
-  unfold cequiv. split.
+  intros b c1 c2.
+  unfold bequiv.
+  intros.
+  split; intros H2.
   Case "->".
-  intros H. 
-  inversion H; subst.
-  SCase "beval st b = true". assumption.
-  SCase "beval st b = false".
-  rewrite Hb in H5. inversion H5.
-
+  inversion H2; subst. assumption.
+  rewrite H in H6. inversion H6.
   Case "<-".
-  intros H.
-  apply E_IfTrue.  apply Hb. assumption.
+  apply E_IfTrue. apply H. assumption.
 Qed.
-  
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
 
 (*
   
@@ -354,11 +376,8 @@ Theorem swap_if_branches: forall b e1 e2,
     (IFB b THEN e1 ELSE e2 FI)
     (IFB BNot b THEN e2 ELSE e1 FI).
 Proof.
-  intros b e1 e2.
-  unfold cequiv.
-  split.
+  split; intros H.
   Case "->".
-  intros H.
   inversion H; subst.
   SCase "b = true".
   apply E_IfFalse. simpl. rewrite H5. reflexivity. assumption.
@@ -366,13 +385,11 @@ Proof.
   apply E_IfTrue. simpl. rewrite H5. reflexivity. assumption.
 
   Case "<-".
-  intros H.
-  inversion H ; subst.
-  SCase "BNot b = true".
-  apply E_IfFalse. simpl in H5. apply negb_true_iff. apply H5. assumption.
-  SCase "BNot b = false".
-  apply E_IfTrue. simpl in H5. apply negb_false_iff. apply H5. assumption.
+  inversion H; subst; simpl in H5.
+  apply E_IfFalse. apply negb_true_iff. assumption. assumption.
+  apply E_IfTrue. apply negb_false_iff. assumption. assumption.
 Qed.
+
 (** [] *)
 
 (** *** *)
@@ -388,19 +405,16 @@ Theorem WHILE_false : forall b c,
      cequiv
        (WHILE b DO c END)
        SKIP.
-Proof. 
-  intros b c Hb. split; intros H.
+Proof.
+  intros b c Hb.
+  split; intros H.
   Case "->".
-    inversion H; subst.
-    SCase "E_WhileEnd".
-      apply E_Skip.
-    SCase "E_WhileLoop".
-      rewrite Hb in H2. inversion H2.
+  inversion H; subst.
+  SCase "b = false". apply E_Skip.
+  SCase "b = true". unfold bequiv in Hb. rewrite Hb in H2. inversion H2.
   Case "<-".
-    inversion H; subst.
-    apply E_WhileEnd.
-    rewrite Hb.
-    reflexivity.  Qed.
+  inversion H. apply E_WhileEnd. rewrite Hb. reflexivity.
+Qed.
 
 (** **** Exercise: 2 stars, advanced, optional (WHILE_false_informal)  *)
 (** Write an informal proof of [WHILE_false].
@@ -443,6 +457,13 @@ Proof.
   intros b c st st' Hb.
   intros H.
   remember (WHILE b DO c END) as cw eqn:Heqcw.
+
+  ceval_cases (induction H) Case; inversion Heqcw; subst; clear Heqcw.
+  Case "E_WhileEnd". rewrite Hb in H. inversion H.
+  Case "E_WhileLoop". apply IHceval2. reflexivity.
+Qed.
+
+(*
   ceval_cases (induction H) Case;
     (* Most rules don't apply, and we can rule them out 
        by inversion *)
@@ -454,6 +475,7 @@ Proof.
     rewrite Hb in H. inversion H.
   Case "E_WhileLoop". (* immediate from the IH *)
     apply IHceval2. reflexivity.  Qed.
+*)
 
 (** **** Exercise: 2 stars, optional (WHILE_true_nonterm_informal)  *)
 (** Explain what the lemma [WHILE_true_nonterm] means in English.
@@ -466,44 +488,74 @@ Proof.
 (** Prove the following theorem. _Hint_: You'll want to use
     [WHILE_true_nonterm] here. *)
 
+(*
+     : forall (b : bexp) (c : com) (st st' : state),
+       bequiv b BTrue -> ~ (WHILE b DO c END) / st || st'
+*)
 Theorem WHILE_true: forall b c,
      bequiv b BTrue  ->
      cequiv 
        (WHILE b DO c END)
        (WHILE BTrue DO SKIP END).
-Proof. 
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+Proof.
+  intros b c Hb.
+  split; intros H.
+  Case "->". inversion H; subst.
+  SCase "b = false".
+  rewrite Hb in H4. inversion H4.
+  SCase "b = true".
+  apply E_WhileLoop with st'0. reflexivity.
+  apply WHILE_true_nonterm in H6. inversion H6.
+  assumption.
+  apply WHILE_true_nonterm in H6. inversion H6.
+  assumption.
+  apply WHILE_true_nonterm in H. inversion H.
+  unfold bequiv. intros. reflexivity.
+Qed.
 
+Lemma Foobar'' : ~(true = false).
+  unfold not. intros. inversion H.
+Qed.
+
+  
 Theorem loop_unrolling: forall b c,
   cequiv
     (WHILE b DO c END)
     (IFB b THEN (c;; WHILE b DO c END) ELSE SKIP FI).
 Proof.
-  (* WORKED IN CLASS *)
-  intros b c st st'.
-  split; intros Hce.
+  intros b c.
+  split; intros H.
   Case "->".
-    inversion Hce; subst.  
-    SCase "loop doesn't run".
-      apply E_IfFalse. assumption. apply E_Skip.
-    SCase "loop runs".
-      apply E_IfTrue. assumption.
-      apply E_Seq with (st' := st'0). assumption. assumption.
+  inversion H; subst.
+  SCase "no loop".
+  apply E_IfFalse. assumption. apply E_Skip.
+  SCase "loop runs".
+  apply E_IfTrue. assumption. apply E_Seq with st'0; assumption.
+
   Case "<-".
-    inversion Hce; subst.
-    SCase "loop runs".
-      inversion H5; subst.
-      apply E_WhileLoop with (st' := st'0). 
-      assumption. assumption. assumption.
-    SCase "loop doesn't run".
-      inversion H5; subst. apply E_WhileEnd. assumption.  Qed.
+  inversion H; subst.
+  SCase "loop runs".
+  inversion H6; subst.
+  apply E_WhileLoop with (st' := st'0). assumption. assumption. assumption.
+  SCase "loop end".
+  inversion H6; subst. apply E_WhileEnd. assumption.
+Qed.
 
 (** **** Exercise: 2 stars, optional (seq_assoc)  *)
 Theorem seq_assoc : forall c1 c2 c3,
   cequiv ((c1;;c2);;c3) (c1;;(c2;;c3)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  split; intros H.
+  Case "->".
+  inversion H; subst. inversion H2; subst.
+  apply E_Seq with st'1. assumption. apply E_Seq with st'0. assumption. assumption.
+  Case "<-".
+  inversion H; subst. inversion H5; subst.
+  apply E_Seq with st'1.
+  apply E_Seq with st'0; assumption.
+  assumption.
+Qed.
 (** [] *)
 
 (** ** The Functional Equivalence Axiom *)
@@ -583,11 +635,12 @@ Proof.
      Case "->". 
        inversion H; subst. simpl.
        replace (update st X (st X)) with st.  
-       constructor. 
-       apply functional_extensionality. intro. 
+       constructor.
+       apply functional_extensionality.
+       intro. 
        rewrite update_same; reflexivity.  
      Case "<-".
-       inversion H; subst. 
+       inversion H; subst.
        assert (st' = (update st' X (st' X))).
           apply functional_extensionality. intro. 
           rewrite update_same; reflexivity.
@@ -600,7 +653,30 @@ Theorem assign_aequiv : forall X e,
   aequiv (AId X) e -> 
   cequiv SKIP (X ::= e).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X e He.
+  split; intros H.
+  unfold aequiv in He.
+
+  Case "->".
+  assert (st' = (update st X (aeval st' e))).
+  SCase "st' = update st X (aeval st' e)".
+  apply functional_extensionality.
+  rewrite <- He. simpl. intros. inversion H; subst. rewrite update_same; reflexivity. 
+  
+  rewrite H0.
+  apply E_Ass. inversion H. reflexivity.
+
+  Case "<-".
+  inversion H; subst. unfold aequiv in He.
+  assert (st = update st X (aeval st  e)).
+
+  apply functional_extensionality.
+  intros. rewrite update_same. reflexivity.
+  rewrite <- He. constructor.
+
+  rewrite <- H0.
+  apply E_Skip.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -764,8 +840,8 @@ Proof.
   intros b1 b1' c1 c1' Hb1e Hc1e st st'.
   split; intros Hce.
   Case "->".
-    remember (WHILE b1 DO c1 END) as cwhile eqn:Heqcwhile.
-    induction Hce; inversion Heqcwhile; subst.
+  remember (WHILE b1 DO c1 END) as cwhile eqn:Heqcwhile.
+  ceval_cases (induction Hce) SCase; inversion Heqcwhile; subst.
     SCase "E_WhileEnd".
       apply E_WhileEnd. rewrite <- Hb1e. apply H.
     SCase "E_WhileLoop".
@@ -774,10 +850,11 @@ Proof.
       SSCase "body execution". 
         apply (Hc1e st st').  apply Hce1. 
       SSCase "subsequent loop execution".
-        apply IHHce2. reflexivity.
+      apply IHHce2. reflexivity.
+      
   Case "<-".
     remember (WHILE b1' DO c1' END) as c'while eqn:Heqc'while.
-    induction Hce; inversion Heqc'while; subst.
+    ceval_cases (induction Hce) SCase; inversion Heqc'while; subst.
     SCase "E_WhileEnd".
       apply E_WhileEnd. rewrite -> Hb1e. apply H.
     SCase "E_WhileLoop".
@@ -792,8 +869,18 @@ Proof.
 Theorem CSeq_congruence : forall c1 c1' c2 c2',
   cequiv c1 c1' -> cequiv c2 c2' ->
   cequiv (c1;;c2) (c1';;c2').
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof.
+  unfold cequiv.
+  intros c1 c1' c2 c2' H1e H2e st st'.
+  split ; intros H.
+  Case "->".
+  inversion H; subst. apply E_Seq with st'0.
+  apply H1e. assumption. apply H2e. assumption.
+
+  Case "<-".
+  inversion H; subst. apply E_Seq with st'0.
+  apply H1e. assumption. apply H2e. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (CIf_congruence)  *)
@@ -801,7 +888,31 @@ Theorem CIf_congruence : forall b b' c1 c1' c2 c2',
   bequiv b b' -> cequiv c1 c1' -> cequiv c2 c2' ->
   cequiv (IFB b THEN c1 ELSE c2 FI) (IFB b' THEN c1' ELSE c2' FI).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold bequiv. unfold cequiv.
+  intros b b' c1 c1' c2 c2' Hb H1e H2e st st'.
+
+  (*
+  split; intros H; inversion H; subst;
+  [apply E_IfTrue | apply E_IfFalse | apply E_IfTrue | apply E_IfFalse];
+  rewrite <- Hb || rewrite Hb || apply H1e || apply H2e; assumption.
+   *)
+
+  split; intros H.
+  
+  Case "->".
+  inversion H; subst.
+  SCase "b = true". apply E_IfTrue. rewrite <- Hb. assumption.
+  apply H1e. assumption.
+  SCase "b = false". apply E_IfFalse. rewrite <- Hb. assumption.
+  apply H2e. assumption.
+
+  Case "<-".
+  inversion H; subst.
+  SCase "b' = true". apply E_IfTrue. rewrite Hb. assumption.
+  apply H1e. assumption.
+  SCase "b' = false". apply E_IfFalse. rewrite Hb. assumption.
+  apply H2e. assumption.
+Qed.
 (** [] *)
 
 (** *** *)
