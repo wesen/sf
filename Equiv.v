@@ -410,10 +410,10 @@ Proof.
   split; intros H.
   Case "->".
   inversion H; subst.
-  SCase "b = false". apply E_Skip.
-  SCase "b = true". unfold bequiv in Hb. rewrite Hb in H2. inversion H2.
+  SCase "E_WhileEnd". apply E_Skip.
+  SCase "E_WhileLoop". unfold bequiv in Hb. rewrite Hb in H2. inversion H2.
   Case "<-".
-  inversion H. apply E_WhileEnd. rewrite Hb. reflexivity.
+  inversion H; subst. apply E_WhileEnd. rewrite Hb. reflexivity.
 Qed.
 
 (** **** Exercise: 2 stars, advanced, optional (WHILE_false_informal)  *)
@@ -1230,6 +1230,50 @@ Proof.
 Theorem fold_constants_bexp_sound: 
   btrans_sound fold_constants_bexp.
 Proof.
+  unfold btrans_sound. intros b. unfold bequiv.
+  intros st.
+
+  bexp_cases (induction b) Case; try reflexivity.
+  Case "BEq". rename a into a1. rename a0 into a2. simpl.
+  remember (fold_constants_aexp a1) as a1'.
+  remember (fold_constants_aexp a2) as a2'.
+
+  replace (aeval st a1) with (aeval st a1') by (subst a1'; rewrite <- fold_constants_aexp_sound; reflexivity).
+  replace (aeval st a2) with (aeval st a2') by (subst a2'; rewrite <- fold_constants_aexp_sound; reflexivity).
+  
+  aexp_cases (destruct a1') SCase; aexp_cases (destruct a2') SSCase; try reflexivity.
+  simpl. destruct (beq_nat n n0); reflexivity.
+  
+  Case "BLe". rename a into a1. rename a0 into a2. simpl.
+  remember (fold_constants_aexp a1) as a1'.
+  remember (fold_constants_aexp a2) as a2'.
+
+  replace (aeval st a1) with (aeval st a1') by (subst a1'; rewrite <- fold_constants_aexp_sound; reflexivity).
+  replace (aeval st a2) with (aeval st a2') by (subst a2'; rewrite <- fold_constants_aexp_sound; reflexivity).
+  aexp_cases (destruct a1') SCase; aexp_cases (destruct a2') SSCase; try reflexivity.
+  simpl. destruct (ble_nat n n0); reflexivity.
+  
+  
+  Case "BNot". simpl. rewrite IHb.
+  bexp_cases (destruct (fold_constants_bexp b)) SCase; reflexivity.
+  
+  Case "BAnd". simpl. rewrite IHb1. rewrite IHb2.
+  bexp_cases (destruct (fold_constants_bexp b1)) SCase;
+    bexp_cases (destruct (fold_constants_bexp b2)) SSCase; reflexivity.
+Qed.
+
+
+
+
+
+
+
+
+
+
+  (*
+
+  
   unfold btrans_sound. intros b. unfold bequiv. intros st.
   bexp_cases (induction b) Case; 
     (* BTrue and BFalse are immediate *)
@@ -1263,6 +1307,8 @@ Proof.
     remember (fold_constants_bexp b2) as b2' eqn:Heqb2'.
     rewrite IHb1. rewrite IHb2.
     destruct b1'; destruct b2'; reflexivity.  Qed.
+
+*)
 (** [] *)
 
 (** **** Exercise: 3 stars (fold_constants_com_sound)  *)
@@ -1270,27 +1316,23 @@ Proof.
 
 Theorem fold_constants_com_sound : 
   ctrans_sound fold_constants_com.
-Proof. 
-  unfold ctrans_sound. intros c. 
+Proof.
+  unfold ctrans_sound. intros c.
   com_cases (induction c) Case; simpl.
   Case "SKIP". apply refl_cequiv.
   Case "::=". apply CAss_congruence. apply fold_constants_aexp_sound.
   Case ";;". apply CSeq_congruence; assumption.
-  Case "IFB". 
-    assert (bequiv b (fold_constants_bexp b)).
-      SCase "Pf of assertion". apply fold_constants_bexp_sound.
-    destruct (fold_constants_bexp b) eqn:Heqb;
-      (* If the optimization doesn't eliminate the if, then the result
-         is easy to prove from the IH and fold_constants_bexp_sound *)
-      try (apply CIf_congruence; assumption).
-    SCase "b always true".
-      apply trans_cequiv with c1; try assumption.
-      apply IFB_true; assumption.
-    SCase "b always false".
-      apply trans_cequiv with c2; try assumption.
-      apply IFB_false; assumption.
+  Case "IFB".
+  assert (bequiv b (fold_constants_bexp b)). apply fold_constants_bexp_sound.
+  destruct (fold_constants_bexp b); try (apply CIf_congruence; assumption).
+  apply trans_cequiv with c1; try apply IFB_true; assumption.
+  apply trans_cequiv with c2; try apply IFB_false; assumption.
   Case "WHILE".
-    (* FILL IN HERE *) Admitted.
+  assert (bequiv b (fold_constants_bexp b)). apply fold_constants_bexp_sound.
+  destruct (fold_constants_bexp b); try (apply CWhile_congruence; assumption).
+  apply WHILE_true. assumption.
+  apply WHILE_false. assumption.
+Qed.
 (** [] *)
 
 (* ########################################################## *)
