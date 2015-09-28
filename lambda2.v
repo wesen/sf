@@ -32,3 +32,13 @@ Fixpoint subst (rep : exp) (x : string) (e : exp) : exp :=
     | Abs y e' => if string_dec y x then Abs y e' else Abs y (subst rep x e')
     | App e1 e2 => App (subst rep x e1) (subst rep x e2)
   end.
+
+Eval compute in subst (Var "foo") "x" (Abs "foo" (Var "x")).
+
+Inductive bigStep : exp -> exp -> Prop :=
+| BigAbs : forall x e, bigStep (Abs x e) (Abs x e)
+| BigApp : forall e1 x e1' e2 v2 v,
+             bigStep e1 (Abs x e1')
+             -> bigStep e2 v2
+             -> bigStep (subst v2 x e1') v
+             -> bigStep (App e1 e2) v.
