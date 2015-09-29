@@ -208,13 +208,21 @@ Notation "{{ P }}  c  {{ Q }}" :=
 
 (** [] *)
 
+Example ex1 : {{ fun st => True }} (X ::= ANum 5) {{ fun st => st X = 5 }}.
+Proof.
+  unfold hoare_triple.
+  intros. inversion H; subst. reflexivity.
+Qed.
 
+Example ex2 : forall m, {{ fun st => st X = m }} (X ::= APlus (AId X) (ANum 5)) {{ fun st => st X = m + 5 }}.
+Proof.
+  unfold hoare_triple. intros. inversion H; subst. reflexivity.
+Qed.
 
-
-
-
-
-
+Example ex4 : {{ fun st => st X = 2 /\ st X = 3 }} (X ::= ANum 5) {{ fun st => st X = 0 }}.
+Proof.
+  unfold hoare_triple. intros. inversion H0. rewrite H1 in H2. inversion H2.
+Qed.
 
 (** **** Exercise: 1 star, optional (valid_triples)  *)
 (** Which of the following Hoare triples are _valid_ -- i.e., the
@@ -399,10 +407,10 @@ Notation "P [ X |-> a ]" := (assn_sub X a P) (at level 10).
 Theorem hoare_asgn : forall Q X a,
   {{Q [X |-> a]}} (X ::= a) {{Q}}.
 Proof.
-  unfold hoare_triple.
-  intros Q X a st st' HE HQ.
-  inversion HE. subst.
-  unfold assn_sub in HQ. assumption.  Qed.
+  unfold hoare_triple.intros Q X a st st'.
+  intros H1 H2.
+  inversion H1; subst. unfold assn_sub in H2. assumption.
+Qed.
 
 (** Here's a first formal proof using this rule. *)
 
@@ -424,8 +432,22 @@ Proof.
        {{ 0 <= X /\ X <= 5 }}
    ...into formal statements [assn_sub_ex1, assn_sub_ex2] 
    and use [hoare_asgn] to prove them. *)
+Example asgn1 :
+  {{(fun st => st X <= 5) [X |-> APlus (AId X) (ANum 1)]}}
+    (X ::= APlus (AId X) (ANum 1))
+    {{fun st => st X <= 5}}.
+Proof.
+  apply hoare_asgn.
+Qed.
 
-(* FILL IN HERE *)
+Example asn2 :
+  {{(fun st => 0 <= st X /\ st X <= 5) [X |-> ANum 3] }}
+    X ::= ANum 3
+    {{ fun st => 0 <= st X /\ st X <= 5 }}.
+Proof.
+  apply hoare_asgn.
+Qed.
+  
 (** [] *)
 
 (** **** Exercise: 2 stars (hoare_asgn_wrong)  *)
@@ -440,7 +462,26 @@ Proof.
     arithmetic expression [a], and your counterexample needs to
     exhibit an [a] for which the rule doesn't work. *)
 
-(* FILL IN HERE *)
+Lemma true_implies : forall P : Prop, True -> P = P.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lemma contra'' : forall st, (st X = st X + 1) -> False.
+  intros st H. induction (st X) in H. inversion H.  inversion H. apply IHn in H1. inversion H1.
+Qed.
+
+Theorem hoare_asgn_wrong :
+  ~ (forall a, {{ fun st => True }}
+            X ::= a
+            {{ fun st => st X = aeval st a }}).
+Proof.
+  intros H.
+  assert ({{ fun st => True }} X ::= APlus (AId X) (ANum 1) {{ fun st => st X = st X + 1 }}).
+  apply H.
+  unfold hoare_triple in H0.
+  Abort.
+    
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (hoare_asgn_fwd)  *)
@@ -459,16 +500,28 @@ Proof.
     rule is more complicated than [hoare_asgn].
 *)
 
+Axiom functional_extensionality:   (forall {X Y: Type} {f g : X -> Y},
+     (forall (x: X), f x = g x) ->  f = g) .
+
 Theorem hoare_asgn_fwd :
-  (forall {X Y: Type} {f g : X -> Y},
-     (forall (x: X), f x = g x) ->  f = g) ->
   forall m a P,
   {{fun st => P st /\ st X = m}}
     X ::= a
   {{fun st => P (update st X m) /\ st X = aeval (update st X m) a }}.
 Proof.
-  intros functional_extensionality m a P.
-  (* FILL IN HERE *) Admitted.
+  intros m a P.
+  unfold hoare_triple.
+  intros st st' Hc H1.
+  inversion Hc; subst.
+  inversion H1.
+  assert (update (update st X (aeval st a)) X m = st) by
+      (apply functional_extensionality; intros; rewrite update_shadow; apply update_same; assumption).
+  split.
+  Case "<-".
+  rewrite H2. assumption.
+
+  Case "->". rewrite H2. apply update_eq.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, advanced (hoare_asgn_fwd_exists)  *)
@@ -484,16 +537,27 @@ Proof.
 (* This rule was proposed by Nick Giannarakis and Zoe Paraskevopoulou. *)
 
 Theorem hoare_asgn_fwd_exists :
-  (forall {X Y: Type} {f g : X -> Y},
-     (forall (x: X), f x = g x) ->  f = g) ->
   forall a P,
   {{fun st => P st}}
     X ::= a
   {{fun st => exists m, P (update st X m) /\
                 st X = aeval (update st X m) a }}.
 Proof.
-  intros functional_extensionality a P.
-  (* FILL IN HERE *) Admitted.
+  intros a P.
+  unfold hoare_triple.
+  intros. inversion H; subst.
+
+    assert (update (update st X (aeval st a)) X (st X) = st) by 
+      (apply functional_extensionality; intros; rewrite update_shadow; rewrite update_same; reflexivity).
+
+  apply ex_intro with (x := st X).
+  split.
+  Case "left".
+  rewrite H1. assumption.
+
+  Case "right".
+  rewrite H1. apply update_eq.
+Qed.
 (** [] *)
 
 (* ####################################################### *) 

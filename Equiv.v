@@ -1717,7 +1717,13 @@ Qed.
 Theorem inequiv_exercise: 
   ~ cequiv (WHILE BTrue DO SKIP END) SKIP.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold cequiv.
+  intros Contra.
+  assert ((WHILE BTrue DO SKIP END) / empty_state || empty_state).
+  apply Contra. apply E_Skip.
+  remember WHILE_true_nonterm as Wtn. unfold not in Wtn.
+  apply (Wtn BTrue SKIP empty_state empty_state). apply refl_bequiv. assumption.
+Qed.
 (** [] *)
 
 (** * Extended exercise: Non-deterministic Imp *)
@@ -1817,8 +1823,9 @@ Inductive ceval : com -> state -> state -> Prop :=
                   c1 / st || st' ->
                   (WHILE b1 DO c1 END) / st' || st'' ->
                   (WHILE b1 DO c1 END) / st || st''
-(* FILL IN HERE *)
-
+  | E_Havoc : forall (st : state) (X : id) (n : nat),
+                (HAVOC X) / st || update st X n
+                          
   where "c1 '/' st '||' st'" := (ceval c1 st st').
 
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
@@ -1826,7 +1833,7 @@ Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   [ Case_aux c "E_Skip" | Case_aux c "E_Ass" | Case_aux c "E_Seq"
   | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
   | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop"
-(* FILL IN HERE *)
+  | Case_aux c "E_Havoc"
 ].
 
 (** As a sanity check, the following claims should be provable for
@@ -1834,12 +1841,16 @@ Tactic Notation "ceval_cases" tactic(first) ident(c) :=
 
 Example havoc_example1 : (HAVOC X) / empty_state || update empty_state X 0.
 Proof.
-(* FILL IN HERE *) Admitted.
+  apply E_Havoc.
+Qed.
 
 Example havoc_example2 :
-  (SKIP;; HAVOC Z) / empty_state || update empty_state Z 42.
+  (SKIP;; HAVOC X) / empty_state || update empty_state X 42.
 Proof.
-(* FILL IN HERE *) Admitted.
+  apply E_Seq with empty_state.
+  apply E_Skip.
+  apply E_Havoc.
+Qed.
 (** [] *)
 
 (** Finally, we repeat the definition of command equivalence from above: *)
@@ -1865,8 +1876,37 @@ Definition pYX :=
 
 
 Theorem pXY_cequiv_pYX :
-  cequiv pXY pYX \/ ~cequiv pXY pYX.
-Proof. (* FILL IN HERE *) Admitted.
+  cequiv pXY pYX.
+Proof.
+  assert (X_neq_Y: X <> Y) by (unfold not; intros; inversion H).
+  
+  unfold pXY. unfold pYX.
+  
+  split; intros H.
+
+  Case "->".
+  inversion H; subst.
+  inversion H2; subst. inversion H5; subst.
+  apply E_Seq with (update st Y n0).
+  apply E_Havoc.
+  assert (update (update st X n) Y n0 = update (update st Y n0) X n) by
+      (apply functional_extensionality; intros; apply update_permute; assumption).
+  rewrite H0.
+  apply E_Havoc.
+
+  Case "<-".
+  inversion H; subst. inversion H2; subst. inversion H5; subst.
+  
+  apply E_Seq with (update st X n0).
+  apply E_Havoc.
+  assert (update (update st X n0) Y n = update (update st Y n) X n0) by
+      (apply functional_extensionality; intros; apply update_permute; assumption).
+  rewrite <- H0.
+  apply E_Havoc.
+Qed.
+  
+
+
 (** [] *)
 
 (** **** Exercise: 4 stars, optional (havoc_copy)  *)
@@ -1884,7 +1924,106 @@ Definition pcopy :=
 
 Theorem ptwice_cequiv_pcopy :
   cequiv ptwice pcopy \/ ~cequiv ptwice pcopy.
-Proof. (* FILL IN HERE *) Admitted.
+Proof.
+  right. unfold not. unfold cequiv. intros.
+  assert (pcopy / empty_state || update (update empty_state X 0) Y 1).
+  apply H. apply E_Seq with (update empty_state X 0). apply E_Havoc.
+  apply E_Havoc.
+  inversion H0; subst.
+  inversion H3; subst. inversion H6; subst.
+  simpl in H7. rewrite update_eq in H7.
+  assert (update (update empty_state X n) Y n X = n).
+  rewrite update_permute. rewrite update_eq. reflexivity.
+
+  unfold not.
+  intros. inversion H1.
+
+  
+  assert (update (update empty_state X n) Y n Y = n).
+  rewrite update_eq. reflexivity.
+
+  rewrite H7 in H1. rewrite H7 in H2.
+  rewrite update_permute in H1. rewrite update_eq in H1.
+  rewrite update_eq in  H2. rewrite <- H1 in H2. inversion H2.
+  unfold not. intros. inversion H4.
+Qed.
+
+Lemma X_neq_Y :
+    X <> Y.
+Proof.
+  unfold not. intros. inversion H.
+Qed.
+
+Theorem ptwice_cequiv_pcopy' :
+  ~cequiv ptwice pcopy.
+Proof.
+  unfold cequiv.
+  intros Contra.
+
+  remember (update (update empty_state X 1) Y 2) as st1.
+  (* remember (update (update empty_state X 1) Y 1) as st2. *)
+  assert (ptwice / empty_state || st1).
+  apply E_Seq with (update empty_state X 1).
+  apply E_Havoc.
+  subst st1. apply E_Havoc.
+  apply Contra in H.
+  inversion H; subst. inversion H5; subst. inversion H2; subst. simpl in H6.
+  rewrite update_eq in H6.
+
+  assert (X <> Y) by (apply X_neq_Y).
+
+  (* first, show that looking up X in st1 is n, looking up X in st2 is 1, thus because st1 = st2, n = 1 *)
+  assert (Hx: update (update empty_state X n) Y n X = n).
+  rewrite update_permute. rewrite update_eq. reflexivity. assumption.
+  
+  assert (Hy: update (update empty_state X n) Y n Y = n).
+  rewrite update_eq. reflexivity.
+  
+  rewrite H6 in Hx. rewrite update_permute in Hx; try assumption. rewrite update_eq in Hx.
+  rewrite H6 in Hy. rewrite update_eq in Hy.  rewrite <- Hx in Hy.
+  inversion Hy.
+Qed.
+
+Lemma update_st_eq:
+  forall st st' x n1 n2,
+    update st x n1 = update st' x n2
+    -> n1 = n2.
+Proof.
+  intros.
+  rewrite <- (update_eq n1 x st).
+  rewrite <- (update_eq n2 x st').
+  rewrite H. reflexivity.
+Qed.
+
+Theorem ptwice_cequiv_pcopy'' :
+  ~cequiv ptwice pcopy.
+Proof.
+  unfold cequiv.
+  intros Contra.
+
+  (* create a state that holds for ptwice but not pcopy *)
+  remember (update (update empty_state X 1) Y 2) as st1.
+  assert (ptwice / empty_state || st1).
+  apply E_Seq with (update empty_state X 1).
+  apply E_Havoc.
+  subst st1. apply E_Havoc.
+
+  (* assert that it holds for pcopy because of Contra *)
+  apply Contra in H.
+  inversion H; subst. inversion H5; subst. inversion H2; subst. simpl in H6.
+  rewrite update_eq in H6.
+
+  assert (n = 2) by (apply update_st_eq in H6; assumption).
+  assert (n = 1).
+  assert (X <> Y) by (apply X_neq_Y).
+  apply (update_st_eq (update empty_state Y n) (update empty_state Y 2) X).
+  apply functional_extensionality. intros.
+  admit.
+  (* XXX *)
+Qed.
+  
+  
+
 (** [] *)
 
 (** The definition of program equivalence we are using here has some
