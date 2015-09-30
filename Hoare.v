@@ -1483,6 +1483,17 @@ Lemma hoare_while : forall P b c,
   {{P}} WHILE b DO c END {{fun st => P st /\ ~ (bassn b st)}}.
 Proof.
   intros P b c Hhoare st st' He HP.
+  remember (WHILE b DO c END) as wcom.
+  ceval_cases (induction He) Case; try (inversion Heqwcom); subst.
+  Case "E_WhileEnd". split. assumption. apply bexp_eval_false. assumption.
+  Case "E_WhileLoop".
+  apply IHHe2. reflexivity.
+  apply (Hhoare st st'). assumption. split. assumption. apply bexp_eval_true. assumption.
+Qed.
+
+
+(*
+  
   (* Like we've seen before, we need to reason by induction 
      on [He], because, in the "keep looping" case, its hypotheses 
      talk about the whole loop instead of just [c]. *)
@@ -1496,6 +1507,7 @@ Proof.
     apply (Hhoare st st'). assumption.
       split. assumption. apply bexp_eval_true. assumption.
 Qed.
+ *)
 
 (**
     One subtlety in the terminology is that calling some assertion [P]
@@ -1514,7 +1526,12 @@ Qed.
 *)
 
 
-
+Lemma bool_inequality_true :
+  forall b,
+    b <> true -> b = false.
+Proof.
+  intros. apply eq_true_not_negb in H. apply negb_true_iff in H. assumption.
+Qed.
 
 
 Example while_example :
@@ -1523,6 +1540,23 @@ Example while_example :
   DO X ::= APlus (AId X) (ANum 1) END
     {{fun st => st X = 3}}.
 Proof.
+  eapply hoare_consequence_post.
+  apply hoare_while; unfold bassn; simpl.
+
+  Case "loop body".
+  hoare_simpl_asgn. intros st [_ H2]. apply ble_nat_true in H2. omega.
+  Case "loop fall through".
+  unfold assn_sub, assert_implies, bassn. simpl. intros st [H1 H2].
+  apply bool_inequality_true in H2. apply ble_nat_false in H2. omega.
+Qed.
+
+
+
+
+
+
+(*
+  
   eapply hoare_consequence_post. 
   apply hoare_while. 
   eapply hoare_consequence_pre. 
@@ -1534,7 +1568,7 @@ Proof.
     apply ex_falso_quodlibet. apply Hb; reflexivity.  
     apply ble_nat_false in Heqle. omega. 
 Qed.
-
+*)
 
 
 
@@ -1547,6 +1581,23 @@ Qed.
 Theorem always_loop_hoare : forall P Q,
   {{P}} WHILE BTrue DO SKIP END {{Q}}.
 Proof.
+  intros P Q.
+  apply hoare_consequence_pre with (P' := fun st : state => True).
+  eapply hoare_consequence_post.
+  apply hoare_while.
+
+  Case "body preserves invariant".
+  intros st st'. constructor.
+  Case "while not executed".
+  unfold bassn, assert_implies, assn_sub; simpl. intros st [_ H1].
+  apply ex_falso_quodlibet. apply H1. reflexivity.
+  Case "P implies invariant".
+  unfold assert_implies. constructor.
+Qed.
+
+
+
+(*
   (* WORKED IN CLASS *)
   intros P Q.
   apply hoare_consequence_pre with (P' := fun st : state => True).
@@ -1559,6 +1610,7 @@ Proof.
     apply ex_falso_quodlibet. apply Hguard. reflexivity.
   Case "Precondition implies invariant".
     intros st H. constructor.  Qed.
+*)
 
 (** Of course, this result is not surprising if we remember that
     the definition of [hoare_triple] asserts that the postcondition
@@ -1647,7 +1699,15 @@ Inductive ceval : state -> com -> state -> Prop :=
       ceval st c1 st' ->
       ceval st' (WHILE b1 DO c1 END) st'' ->
       ceval st (WHILE b1 DO c1 END) st''
-(* FILL IN HERE *)
+  | E_RepeatEnd : forall b1 st st' c1,
+                    beval st' b1 = true ->
+                    ceval st c1 st' ->
+                    ceval st (REPEAT c1 UNTIL b1 END) st'
+  | E_RepeatLoop : forall b1 st st' st'' c1,
+                     beval st' b1 = false ->
+                     ceval st c1 st' ->
+                     ceval st' (REPEAT c1 UNTIL b1 END) st'' ->
+                     ceval st (REPEAT c1 UNTIL b1 END) st''
 .
 
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
@@ -1655,8 +1715,8 @@ Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   [ Case_aux c "E_Skip" | Case_aux c "E_Ass"
   | Case_aux c "E_Seq"
   | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
-  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" 
-(* FILL IN HERE *)
+  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop"
+  | Case_aux c "E_RepeatEnd" | Case_aux c "E_RepeatLoop"
 ].
 
 (** A couple of definitions from above, copied here so they use the
@@ -1685,8 +1745,44 @@ Theorem ex1_repeat_works :
   ex1_repeat / empty_state ||
                update (update empty_state X 1) Y 1.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold ex1_repeat.
+  apply E_RepeatEnd. 
+  (* check is true *) reflexivity.
+  (* body *)
+  eapply E_Seq; apply E_Ass; reflexivity.
+Qed.
 
+
+Lemma hoare_while' : forall P b c,
+  {{fun st => P st /\ bassn b st}} c {{P}} ->
+  {{P}} WHILE b DO c END {{fun st => P st /\ ~ (bassn b st)}}.
+Proof.
+  intros P b c Hhoare st st' He HP.
+  remember (WHILE b DO c END) as wcom.
+  ceval_cases (induction He) Case; try (inversion Heqwcom); subst.
+  Case "E_WhileEnd". split. assumption. apply bexp_eval_false. assumption.
+  Case "E_WhileLoop".
+  apply IHHe2. reflexivity.
+  apply (Hhoare st st'). assumption. split. assumption. apply bexp_eval_true. assumption.
+Qed.
+
+Theorem hoare_repeat :
+  forall P Q b c,
+    {{ P }} c {{ Q }} ->
+    (fun st => Q st /\ ~ bassn b st) ->> P ->
+    {{P}} REPEAT c UNTIL b END {{Q}}.
+Proof.
+  intros P Q b c Hbtrue Hbfalse.
+  intros st st' He Hp.
+  remember (REPEAT c UNTIL b END) as rcom.
+  ceval_cases (induction He) Case; try (inversion Heqrcom); subst.
+  Case "E_RepeatEnd". apply (Hbtrue st); assumption.
+  Case "E_RepeatLoop". apply IHHe2. reflexivity. apply Hbfalse. split.
+  SCase "Q st'". apply (Hbtrue st st').  assumption. assumption.
+  SCase "~ bassn b st".
+  apply bexp_eval_false. assumption.
+Qed.
+  
 (** Now state and prove a theorem, [hoare_repeat], that expresses an
     appropriate proof rule for [repeat] commands.  Use [hoare_while]
     as a model, and try to make your rule as precise as possible. *)
@@ -1794,12 +1890,13 @@ Notation "{{ P }}  c  {{ Q }}" := (hoare_triple P c Q)
     [havoc_pre] and prove that the resulting rule is correct. *)
 
 Definition havoc_pre (X : id) (Q : Assertion) : Assertion :=
-(* FILL IN HERE *) admit.
+  fun st => forall n, Q (update st X n).
 
 Theorem hoare_havoc : forall (Q : Assertion) (X : id),
   {{ havoc_pre X Q }} HAVOC X {{ Q }}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros Q X st st' Hp Hh. inversion Hp; subst. apply Hh.
+Qed.
 
 End Himp.
 (** [] *)
